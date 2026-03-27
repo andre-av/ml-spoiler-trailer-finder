@@ -5,6 +5,9 @@ Fetches comments from a YouTube video URL using youtube-comment-downloader.
 No API key required.
 """
 
+import re
+
+import requests
 from youtube_comment_downloader import YoutubeCommentDownloader, SORT_BY_POPULAR
 
 
@@ -51,3 +54,19 @@ def fetch_comment_texts(url: str, max_comments: int = 200) -> list:
     """
     comments = fetch_comments(url, max_comments=max_comments)
     return [c["text"] for c in comments]
+
+
+def fetch_video_title(url: str) -> str:
+    """
+    Fetch the video title from a YouTube URL by scraping the page's <title> tag.
+
+    Returns "Unknown Title" if extraction fails.
+    """
+    try:
+        resp = requests.get(url, headers={"Accept-Language": "en"}, timeout=10)
+        match = re.search(r"<title>(.*?)</title>", resp.text)
+        if match:
+            return match.group(1).replace(" - YouTube", "").strip()
+    except Exception:
+        pass
+    return "Unknown Title"
