@@ -4,7 +4,7 @@ An ML-powered tool that analyzes YouTube movie trailer comments to detect spoile
 
 <img width="1390" height="794" alt="Screenshot 2026-03-28 at 20 22 11" src="https://github.com/user-attachments/assets/aeab7e0a-4385-4cf2-a4a3-ecd9edeaf278" />
 
-<img width="748" height="338" alt="Screenshot 2026-03-28 at 20 23 13" src="https://github.com/user-attachments/assets/34bd1514-acae-4e60-8e4c-378d128d4d35" />
+<img width="743" height="363" alt="Screenshot 2026-03-28 at 20 25 03" src="https://github.com/user-attachments/assets/4a38c8ec-8046-4b1c-8c3f-cde2ecdc4962" />
 
 
 ## How It Works
