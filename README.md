@@ -1,6 +1,6 @@
 # Movie Trailer Spoiler Detector
 
-An ML-powered tool that analyzes YouTube movie trailer comments to detect spoilers, helping viewers decide whether it's safe to read the comment section.
+An ML-powered tool that analyzes YouTube movie trailer comments to detect spoilers, helping viewers decide whether it's safe to watch the trailer.
 
 ## How It Works
 
