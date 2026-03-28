@@ -20,14 +20,46 @@ from src.model.combined_scorer import analyze_trailer
 st.set_page_config(
     page_title="Fentaza's Spoiler Detector",
     page_icon="🎬",
-    layout="wide",
+    layout="centered",
 )
 
 has_results = "result" in st.session_state
 
 COMMENT_OPTIONS = {"50": 50, "100": 100, "200": 200, "10000 (slower)": 10000}
 
-# --- Layout: single column before analysis, split after ---
+# --- Custom CSS: split-view UX (only when results exist) ---
+if has_results:
+    # animate_results is True only on the first render after a new analysis,
+    # so the slide-in plays once and not on every widget interaction.
+    should_animate = st.session_state.pop("animate_results", False)
+    animation_css = """
+    @keyframes fadeSlideIn {
+        from { opacity: 0; transform: translateX(40px); }
+        to   { opacity: 1; transform: translateX(0); }
+    }
+    .stMainBlockContainer [data-testid="stHorizontalBlock"]:first-of-type > div:nth-child(2) {
+        animation: fadeSlideIn 0.55s ease-out;
+    }
+    """ if should_animate else ""
+
+    st.markdown(f"""
+    <style>
+    {animation_css}
+
+    /* Let left and right columns have independent heights */
+    .stMainBlockContainer [data-testid="stHorizontalBlock"]:first-of-type {{
+        align-items: flex-start !important;
+    }}
+
+    /* Pin the left panel so it stays visible while the right side scrolls */
+    .stMainBlockContainer [data-testid="stHorizontalBlock"]:first-of-type > div:first-child {{
+        position: sticky;
+        top: 3.5rem;
+    }}
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- Layout: full-width before analysis, split after ---
 if has_results:
     left_col, right_col = st.columns([4, 5])
 else:
@@ -74,47 +106,50 @@ with left_col:
 
     analyze_clicked = st.button("Analyze Trailer", type="primary", use_container_width=True)
 
-# --- Analysis (stores everything in session_state) ---
-if analyze_clicked and url:
-    if "youtube.com/watch" not in url and "youtu.be/" not in url:
-        st.error("Please enter a valid YouTube URL.")
-    else:
-        with st.status("Analyzing trailer comments...", expanded=True) as status:
-            st.write("Fetching video title...")
-            video_title = fetch_video_title(url)
+    # Analysis runs inside left_col so the loading status appears here
+    if analyze_clicked and url:
+        if "youtube.com/watch" not in url and "youtu.be/" not in url:
+            st.error("Please enter a valid YouTube URL.")
+        else:
+            with st.status("Analyzing trailer comments...", expanded=True) as status:
+                st.write("Fetching video title...")
+                video_title = fetch_video_title(url)
 
-            st.write("Fetching YouTube comments...")
-            try:
-                raw_comments = fetch_comments(url, max_comments=max_comments)
-            except Exception as e:
-                st.error(f"Failed to fetch comments: {e}")
-                st.stop()
+                st.write("Fetching YouTube comments...")
+                try:
+                    raw_comments = fetch_comments(url, max_comments=max_comments)
+                except Exception as e:
+                    st.error(f"Failed to fetch comments: {e}")
+                    st.stop()
 
-            if not raw_comments:
-                st.warning("No comments found for this video.")
-                st.stop()
+                if not raw_comments:
+                    st.warning("No comments found for this video.")
+                    st.stop()
 
-            comment_texts = [c["text"] for c in raw_comments]
-            st.write(f"Fetched **{len(comment_texts)}** comments. Running spoiler analysis...")
+                comment_texts = [c["text"] for c in raw_comments]
+                st.write(f"Fetched **{len(comment_texts)}** comments. Running spoiler analysis...")
 
-            result = analyze_trailer(comment_texts, custom_keywords=custom_keywords)
-            status.update(label="Analysis complete!", state="complete", expanded=False)
+                result = analyze_trailer(comment_texts, custom_keywords=custom_keywords)
+                status.update(label="Analysis complete!", state="complete", expanded=False)
 
-        st.session_state["result"] = result
-        st.session_state["analyzed_count"] = len(comment_texts)
-        st.session_state["video_title"] = video_title
-        st.session_state["video_url"] = url
-        st.session_state["params"] = {
-            "comments_requested": comment_choice,
-            "custom_keywords": custom_keywords,
-        }
-        st.rerun()
+            st.session_state["result"] = result
+            st.session_state["analyzed_count"] = len(comment_texts)
+            st.session_state["video_title"] = video_title
+            st.session_state["video_url"] = url
+            st.session_state["params"] = {
+                "comments_requested": comment_choice,
+                "custom_keywords": custom_keywords,
+            }
+            st.session_state["animate_results"] = True
+            st.rerun()
 
-elif analyze_clicked and not url:
-    st.warning("Enter a valid url :(")
+    elif analyze_clicked and not url:
+        st.warning("Enter a valid url :(")
 
 # --- Right side: results (only rendered when we have results) ---
 if has_results and right_col is not None:
+    st.set_page_config(layout="wide")
+
     result = st.session_state["result"]
     meta = st.session_state["params"]
 
