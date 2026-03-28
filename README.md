@@ -29,7 +29,7 @@ An ML-powered tool that analyzes YouTube movie trailer comments to detect spoile
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/ml-spoiler-trailer-finder.git
+git clone https://github.com/andre-av/ml-spoiler-trailer-finder.git
 cd ml-spoiler-trailer-finder
 
 # Create and activate a virtual environment

@@ -10,56 +10,75 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import pathlib
+
 import pandas as pd
 import streamlit as st
 from src.scraper.youtube_comments import fetch_comments, fetch_video_title
 from src.model.combined_scorer import analyze_trailer
 
+EXAMPLE_URL = "https://www.youtube.com/watch?v=K8L0m9HeXBE"
 
-# --- Page Config ---
+# --- Page Config (called exactly once, always wide) ---
 st.set_page_config(
     page_title="Fentaza's Spoiler Detector",
     page_icon="🎬",
-    layout="centered",
+    layout="wide",
 )
 
 has_results = "result" in st.session_state
-
 COMMENT_OPTIONS = {"50": 50, "100": 100, "200": 200, "10000 (slower)": 10000}
 
-# --- Custom CSS: split-view UX (only when results exist) ---
+# --- Theme CSS (from file) + layout CSS (state-dependent, inline) ---
+_theme_css = pathlib.Path(__file__).with_name("style.css").read_text()
+
+should_animate = st.session_state.pop("animate_results", False) if has_results else False
+animation_css = """
+@keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateX(40px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+.stMainBlockContainer [data-testid="stHorizontalBlock"]:first-of-type > div:nth-child(2) {
+    animation: fadeSlideIn 0.55s ease-out;
+}
+""" if should_animate else ""
+
 if has_results:
-    # animate_results is True only on the first render after a new analysis,
-    # so the slide-in plays once and not on every widget interaction.
-    should_animate = st.session_state.pop("animate_results", False)
-    animation_css = """
-    @keyframes fadeSlideIn {
-        from { opacity: 0; transform: translateX(40px); }
-        to   { opacity: 1; transform: translateX(0); }
-    }
-    .stMainBlockContainer [data-testid="stHorizontalBlock"]:first-of-type > div:nth-child(2) {
-        animation: fadeSlideIn 0.55s ease-out;
-    }
-    """ if should_animate else ""
-
-    st.markdown(f"""
-    <style>
-    {animation_css}
-
-    /* Let left and right columns have independent heights */
-    .stMainBlockContainer [data-testid="stHorizontalBlock"]:first-of-type {{
+    layout_css = """
+    .stMainBlockContainer [data-testid="stHorizontalBlock"]:first-of-type {
         align-items: flex-start !important;
-    }}
-
-    /* Pin the left panel so it stays visible while the right side scrolls */
-    .stMainBlockContainer [data-testid="stHorizontalBlock"]:first-of-type > div:first-child {{
+    }
+    .stMainBlockContainer [data-testid="stHorizontalBlock"]:first-of-type > div:first-child {
         position: sticky;
         top: 3.5rem;
-    }}
-    </style>
-    """, unsafe_allow_html=True)
+        padding-right: 1.5rem;
+    }
+    @media (prefers-color-scheme: light) {
+        .stMainBlockContainer [data-testid="stHorizontalBlock"]:first-of-type > div:first-child {
+            border-right: 1px solid #cbc0d3;
+        }
+    }
+    @media (prefers-color-scheme: dark) {
+        .stMainBlockContainer [data-testid="stHorizontalBlock"]:first-of-type > div:first-child {
+            border-right: 1px solid #4a4e69;
+        }
+    }
+    """
+else:
+    layout_css = """
+    .stMainBlockContainer {
+        max-width: 52rem;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    """
 
-# --- Layout: full-width before analysis, split after ---
+st.markdown(
+    f"<style>{_theme_css}\n{layout_css}\n{animation_css}</style>",
+    unsafe_allow_html=True,
+)
+
+# --- Layout: centered container before analysis, split columns after ---
 if has_results:
     left_col, right_col = st.columns([4, 5])
 else:
@@ -80,34 +99,50 @@ with left_col:
         "warns about spoilers -- **before** you watch the trailer."
     )
 
-    url = st.text_input(
-        "YouTube Trailer URL",
-        placeholder="https://www.youtube.com/watch?v=...",
-    )
+    if st.button("Try on trailer: Cast Away (2000)", use_container_width=True):
+        st.session_state["url_value"] = EXAMPLE_URL
+        st.session_state["auto_analyze"] = True
+        st.rerun()
 
-    col1, col2 = st.columns([5, 4])
-    with col1:
-        comment_choice = st.radio(
-            "Comments to analyze",
-            options=list(COMMENT_OPTIONS.keys()),
-            index=0,
-            horizontal=True,
-            help="'10000' fetches, realistically, every available comment. This will be slower.",
-        )
-        max_comments = COMMENT_OPTIONS[comment_choice]
-
-    with col2:
-        custom_kw_input = st.text_input(
-            "Custom keywords (comma-separated, optional)",
-            placeholder='e.g. dies, killed, twist, ending',
+    # Form batches widget changes -- nothing reruns until "Analyze" is clicked
+    with st.form("analysis_form"):
+        url = st.text_input(
+            "YouTube Trailer URL",
+            value=st.session_state.get("url_value", ""),
+            placeholder="https://www.youtube.com/watch?v=...",
         )
 
-    custom_keywords = [k.strip() for k in custom_kw_input.split(",") if k.strip()] if custom_kw_input else None
+        col1, col2 = st.columns([5, 4])
+        with col1:
+            comment_choice = st.radio(
+                "Comments to analyze",
+                options=list(COMMENT_OPTIONS.keys()),
+                index=0,
+                horizontal=True,
+                help="'10000' fetches every available comment. This will be slower.",
+            )
+            max_comments = COMMENT_OPTIONS[comment_choice]
 
-    analyze_clicked = st.button("Analyze Trailer", type="primary", use_container_width=True)
+        with col2:
+            custom_kw_input = st.text_input(
+                "Custom keywords (comma-separated, optional)",
+                placeholder='e.g. dies, killed, twist, ending',
+            )
 
-    # Analysis runs inside left_col so the loading status appears here
-    if analyze_clicked and url:
+        custom_keywords = (
+            [k.strip() for k in custom_kw_input.split(",") if k.strip()]
+            if custom_kw_input else None
+        )
+
+        analyze_clicked = st.form_submit_button(
+            "Analyze Trailer", type="primary", use_container_width=True,
+        )
+
+    # Also trigger analysis when the example button was pressed
+    auto_analyze = st.session_state.pop("auto_analyze", False)
+    should_run = (analyze_clicked or auto_analyze) and url
+
+    if should_run:
         if "youtube.com/watch" not in url and "youtu.be/" not in url:
             st.error("Please enter a valid YouTube URL.")
         else:
@@ -136,6 +171,7 @@ with left_col:
             st.session_state["analyzed_count"] = len(comment_texts)
             st.session_state["video_title"] = video_title
             st.session_state["video_url"] = url
+            st.session_state["url_value"] = url
             st.session_state["params"] = {
                 "comments_requested": comment_choice,
                 "custom_keywords": custom_keywords,
@@ -144,31 +180,44 @@ with left_col:
             st.rerun()
 
     elif analyze_clicked and not url:
-        st.warning("Enter a valid url :(")
+        st.warning("Enter a YouTube URL.")
 
-# --- Right side: results (only rendered when we have results) ---
+
+# --- Right side: results ---
 if has_results and right_col is not None:
-    st.set_page_config(layout="wide")
-
     result = st.session_state["result"]
     meta = st.session_state["params"]
 
     with right_col:
         st.markdown(f"## {st.session_state['video_title']}")
-        st.success(f"Analysis complete! ({st.session_state['analyzed_count']} comments analyzed)")
+        st.success(
+            f"Analysis complete! ({st.session_state['analyzed_count']} comments analyzed)"
+        )
 
-        risk_color = {
-            "Low": "green",
-            "Medium": "orange",
-            "High": "red",
+        risk_pct = result.spoiler_risk_score
+        risk_color_name = {
+            "Low": "green", "Medium": "orange", "High": "red",
         }.get(result.risk_label, "gray")
 
-        st.markdown(f"### Spoiler Risk: :{risk_color}[{result.risk_label}]")
+        st.markdown(f"### Spoiler Risk: :{risk_color_name}[{result.risk_label}]  ({risk_pct}/100)")
 
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Risk Score", f"{result.spoiler_risk_score}/100")
-        m2.metric("Flagged Comments", f"{result.flagged_count}/{result.total_comments}")
-        m3.metric("Flagged %", f"{result.flagged_percentage}%")
+        if risk_pct <= 30:
+            bar_color = "#27ae60"
+        elif risk_pct <= 60:
+            bar_color = "#f39c12"
+        else:
+            bar_color = "#e74c3c"
+
+        st.markdown(
+            f'<div class="risk-bar-track">'
+            f'<div class="risk-bar-fill" style="width:{risk_pct}%;background:{bar_color}"></div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        m1, m2 = st.columns(2)
+        m1.metric("Flagged Comments", f"{result.flagged_count}/{result.total_comments}")
+        m2.metric("Flagged %", f"{result.flagged_percentage}%")
 
         with st.expander("Signal Breakdown"):
             s1, s2, s3 = st.columns(3)
@@ -191,7 +240,10 @@ if has_results and right_col is not None:
 
         if result.flagged_comments:
             st.subheader("Flagged Comments")
-            st.caption("Comments that indicate the trailer may contain spoilers, sorted by confidence.")
+            st.caption(
+                "Comments that indicate the trailer may contain spoilers, "
+                "sorted by confidence."
+            )
 
             for i, comment in enumerate(result.flagged_comments, 1):
                 score_pct = int(comment.combined_score * 100)
@@ -205,21 +257,32 @@ if has_results and right_col is not None:
                         c1.metric("Keyword Score", f"{comment.keyword_score:.2f}")
                         c2.metric("Zero-Shot Score", f"{comment.zero_shot_score:.3f}")
                         if comment.keyword_patterns:
-                            st.caption(f"Keyword patterns matched: {', '.join(comment.keyword_patterns)}")
+                            st.caption(
+                                f"Keyword patterns matched: "
+                                f"{', '.join(comment.keyword_patterns)}"
+                            )
         else:
             st.success("No spoiler warnings detected in the comments!")
 
         with st.expander(f"View all {result.total_comments} analyzed comments"):
-            sorted_comments = sorted(result.all_comments, key=lambda c: c.combined_score, reverse=True)
+            sorted_comments = sorted(
+                result.all_comments, key=lambda c: c.combined_score, reverse=True,
+            )
 
             df_data = []
             for comment in sorted_comments:
                 df_data.append({
-                    "Confidence": f"{'🔴' if comment.is_flagged else '⚪'} {round(comment.combined_score * 100):.0f}%",
+                    "Confidence": (
+                        f"{'🔴' if comment.is_flagged else '⚪'} "
+                        f"{round(comment.combined_score * 100):.0f}%"
+                    ),
                     "Comment": comment.text[:150].replace("\n", " "),
                     "Keyword": round(comment.keyword_score, 2),
                     "Zero-Shot": round(comment.zero_shot_score, 3),
-                    "Patterns": ", ".join(comment.keyword_patterns) if comment.keyword_patterns else "",
+                    "Patterns": (
+                        ", ".join(comment.keyword_patterns)
+                        if comment.keyword_patterns else ""
+                    ),
                 })
 
             df = pd.DataFrame(df_data)
@@ -230,17 +293,31 @@ if has_results and right_col is not None:
                 height=400,
                 column_config={
                     "Confidence": st.column_config.TextColumn(width="small"),
-                    "Keyword": st.column_config.NumberColumn(format="%.2f", width="small"),
-                    "Zero-Shot": st.column_config.NumberColumn(format="%.3f", width="small"),
+                    "Keyword": st.column_config.NumberColumn(
+                        format="%.2f", width="small",
+                    ),
+                    "Zero-Shot": st.column_config.NumberColumn(
+                        format="%.3f", width="small",
+                    ),
                     "Patterns": st.column_config.TextColumn(width="medium"),
                     "Comment": st.column_config.TextColumn(width="large"),
                 },
             )
 
-# --- Footer ---
-st.divider()
-st.caption(
+# --- Footer (rendered as raw HTML so it can break out of centered max-width) ---
+st.markdown(
+    '<div class="site-footer"><hr>'
+    '<div class="footer-content">'
+    '<span class="footer-left">'
     "Built with BART zero-shot classification + keyword heuristics. "
     "This tool analyzes YouTube comments to assess spoiler risk — "
     "it does not analyze the trailer video itself."
+    "</span>"
+    '<span class="footer-right">'
+    "Made by Andrei 'Fent\u00e1za' Avram &middot; "
+    '<a href="https://github.com/andre-av" target="_blank">GitHub</a> &middot; '
+    '<a href="https://www.linkedin.com/in/andrei-d-avram/" target="_blank">LinkedIn</a>'
+    "</span>"
+    "</div></div>",
+    unsafe_allow_html=True,
 )

@@ -1,0 +1,168 @@
+/* ============================================================
+   Movie Trailer Spoiler Detector – Theme
+   ============================================================
+   DARK MODE                        LIGHT MODE
+   --space-indigo:  #22223b         --lavender-grey:  #8e9aaf
+   --dusty-grape:   #4a4e69         --thistle:        #cbc0d3
+   --lilac-ash:     #9a8c98         --soft-blush:     #efd3d7
+   --almond-silk:   #c9ada7         --lavender-veil:  #feeafa
+   --parchment:     #f2e9e4         --lavender:       #dee2ff
+   ============================================================ */
+
+/* ---- Shared ---- */
+
+h1 {
+    font-weight: 700 !important;
+}
+
+[data-testid="stExpander"],
+div[data-testid="stMetric"] {
+    border-radius: 0.6rem;
+}
+
+.risk-bar-track {
+    border-radius: 10px;
+    height: 22px;
+    margin: 0.4rem 0 1rem 0;
+    overflow: hidden;
+}
+.risk-bar-fill {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.6s ease-out;
+}
+
+/* ---- Light mode ---- */
+@media (prefers-color-scheme: light) {
+    .stApp {
+        background-color: #feeafa;
+    }
+    .stMainBlockContainer {
+        color: #3b3252;
+    }
+    h1, h2, h3 {
+        color: #2e2047 !important;
+    }
+    [data-testid="stCaptionContainer"] {
+        color: #8e9aaf !important;
+    }
+    hr {
+        border-color: #cbc0d3 !important;
+    }
+
+    [data-testid="stTextInput"] input,
+    [data-testid="stNumberInput"] input {
+        background-color: #dee2ff;
+        border-color: #cbc0d3;
+    }
+    [data-baseweb="select"] {
+        background-color: #dee2ff;
+    }
+
+    [data-testid="stExpander"] {
+        border-color: #cbc0d3;
+    }
+    div[data-testid="stMetric"] {
+        background-color: #dee2ff;
+        padding: 0.6rem;
+    }
+
+    .risk-bar-track {
+        background-color: #cbc0d3;
+    }
+}
+
+/* ---- Dark mode ---- */
+@media (prefers-color-scheme: dark) {
+    .stApp {
+        background-color: #22223b;
+    }
+    .stMainBlockContainer {
+        color: #c9ada7;
+    }
+    h1, h2, h3 {
+        color: #f2e9e4 !important;
+    }
+    [data-testid="stCaptionContainer"] {
+        color: #9a8c98 !important;
+    }
+    hr {
+        border-color: #4a4e69 !important;
+    }
+
+    [data-testid="stTextInput"] input,
+    [data-testid="stNumberInput"] input {
+        background-color: #4a4e69;
+        border-color: #9a8c98;
+        color: #f2e9e4;
+    }
+    [data-baseweb="select"] {
+        background-color: #4a4e69;
+    }
+
+    [data-testid="stExpander"] {
+        border-color: #4a4e69;
+    }
+    div[data-testid="stMetric"] {
+        background-color: #4a4e69;
+        padding: 0.6rem;
+    }
+
+    [data-testid="stAlert"] {
+        background-color: #4a4e69;
+        color: #f2e9e4;
+    }
+
+    .risk-bar-track {
+        background-color: #4a4e69;
+    }
+}
+
+/* ---- Footer: always full viewport width ---- */
+.site-footer {
+    position: relative;
+    width: 100vw;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 1rem 3rem 1.5rem;
+    box-sizing: border-box;
+}
+.site-footer hr {
+    margin-bottom: 0.8rem;
+}
+.footer-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 0.82rem;
+    gap: 2rem;
+}
+.footer-right {
+    text-align: right;
+    white-space: nowrap;
+}
+
+@media (prefers-color-scheme: light) {
+    .footer-content { color: #8e9aaf; }
+    .footer-content a { color: #6b7b95; }
+    .site-footer hr { border-color: #cbc0d3; }
+}
+@media (prefers-color-scheme: dark) {
+    .footer-content { color: #9a8c98; }
+    .footer-content a { color: #c9ada7; }
+    .site-footer hr { border-color: #4a4e69; }
+}
+
+/* ---- Mobile: stack columns vertically ---- */
+@media (max-width: 768px) {
+    .stMainBlockContainer [data-testid="stHorizontalBlock"]:first-of-type {
+        flex-direction: column !important;
+    }
+    .stMainBlockContainer [data-testid="stHorizontalBlock"]:first-of-type > div:first-child {
+        position: static !important;
+        width: 100% !important;
+    }
+    .stMainBlockContainer [data-testid="stHorizontalBlock"]:first-of-type > div:nth-child(2) {
+        width: 100% !important;
+    }
+}
